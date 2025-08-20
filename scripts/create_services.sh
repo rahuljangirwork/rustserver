@@ -7,13 +7,19 @@ set -euo pipefail
 create_systemd_services() {
     log_info "Creating systemd services for RustDesk server..."
     
-    # Get server IP for relay configuration
+    # Get server IP for relay configuration (with verbose logging)
+    log_info "Attempting to detect server IP address..."
     local server_ip
     server_ip=$(get_server_ip)
     
     if [[ -z "$server_ip" ]]; then
         log_error "Could not determine server IP address"
-        exit 1
+        log_info "Please enter your server's public IP address manually:"
+        read -p "Server IP: " server_ip
+        if [[ -z "$server_ip" ]]; then
+            log_error "Server IP is required for RustDesk configuration"
+            exit 1
+        fi
     fi
     
     log_info "Using server IP: $server_ip"
@@ -36,13 +42,12 @@ create_hbbs_service() {
     
     log_info "Creating hbbs (hub server) service..."
     
-    # Use template and substitute variables
     local service_file="/etc/systemd/system/rustdesk-hbbs.service"
     
-    # Create service file from template
+    # Create clean service file
     cat > "$service_file" << EOF
 [Unit]
-Description=RustDesk Hub Server (hbbs)
+Description=RustDesk Hub Server
 Documentation=https://github.com/rustdesk/rustdesk-server
 After=network.target network-online.target
 Wants=network-online.target
@@ -83,10 +88,10 @@ create_hbbr_service() {
     
     local service_file="/etc/systemd/system/rustdesk-hbbr.service"
     
-    # Create service file
+    # Create clean service file
     cat > "$service_file" << EOF
 [Unit]
-Description=RustDesk Relay Server (hbbr)
+Description=RustDesk Relay Server
 Documentation=https://github.com/rustdesk/rustdesk-server
 After=network.target network-online.target
 Wants=network-online.target
@@ -121,51 +126,6 @@ EOF
     log_success "Created hbbr service file"
 }
 
-# Create optional web console service
-create_web_console_service() {
-    local server_ip="$1"
-    local web_password="$2"
-    
-    log_info "Creating web console service..."
-    
-    local service_file="/etc/systemd/system/rustdesk-hbbs-web.service"
-    
-    cat > "$service_file" << EOF
-[Unit]
-Description=RustDesk Hub Server with Web Console
-Documentation=https://github.com/rustdesk/rustdesk-server
-After=network.target network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-User=${SERVICE_USER}
-Group=${SERVICE_USER}
-WorkingDirectory=${INSTALL_DIR}
-ExecStart=${INSTALL_DIR}/hbbs -r ${server_ip}:21117 -w ${web_password}
-Restart=always
-RestartSec=5
-StartLimitInterval=60s
-StartLimitBurst=3
-
-# Security settings
-NoNewPrivileges=true
-PrivateTmp=true
-ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths=${INSTALL_DIR} ${LOG_DIR}
-
-# Logging
-StandardOutput=journal
-StandardError=journal
-SyslogIdentifier=rustdesk-hbbs-web
-
-[Install]
-WantedBy=multi-user.target
-EOF
-    
-    log_success "Created web console service file"
-}
 
 # Validate service files
 validate_service_files() {

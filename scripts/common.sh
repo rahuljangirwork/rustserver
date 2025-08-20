@@ -97,20 +97,17 @@ download_file() {
 }
 
 # Get server IP address
-# Get server IP address with multiple fallbacks
 get_server_ip() {
     local server_ip=""
     
-    # Method 1: Try AWS metadata (with short timeout)
-    log_info "Attempting to get IP from AWS metadata..."
+    # Method 1: Try AWS metadata (silent)
     server_ip=$(curl -s --connect-timeout 2 --max-time 3 http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null)
     if [[ -n "$server_ip" && "$server_ip" != "curl:"* ]]; then
         echo "${server_ip}"
         return 0
     fi
     
-    # Method 2: External IP service (ipify)
-    log_info "Attempting to get IP from ipify service..."
+    # Method 2: External IP service (ipify) 
     server_ip=$(curl -s --connect-timeout 5 --max-time 10 https://api.ipify.org 2>/dev/null)
     if [[ -n "$server_ip" && "$server_ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
         echo "${server_ip}"
@@ -118,43 +115,21 @@ get_server_ip() {
     fi
     
     # Method 3: External IP service (ifconfig.me)
-    log_info "Attempting to get IP from ifconfig.me..."
     server_ip=$(curl -s --connect-timeout 5 --max-time 10 ifconfig.me 2>/dev/null)
     if [[ -n "$server_ip" && "$server_ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
         echo "${server_ip}"
         return 0
     fi
     
-    # Method 4: DNS method (opendns)
-    log_info "Attempting to get IP via DNS..."
-    if command -v dig >/dev/null 2>&1; then
-        server_ip=$(dig +short myip.opendns.com @resolver1.opendns.com 2>/dev/null | head -1)
-        if [[ -n "$server_ip" && "$server_ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "${server_ip}"
-            return 0
-        fi
-    fi
-    
-    # Method 5: Route-based detection
-    log_info "Attempting to get IP via routing table..."
+    # Method 4: Route-based detection
     server_ip=$(ip route get 8.8.8.8 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src") print $(i+1); exit}')
     if [[ -n "$server_ip" && "$server_ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
         echo "${server_ip}"
         return 0
     fi
     
-    # Method 6: hostname -I fallback
-    log_info "Attempting to get IP via hostname..."
+    # Method 5: hostname -I fallback
     server_ip=$(hostname -I 2>/dev/null | awk '{print $1}')
-    if [[ -n "$server_ip" && "$server_ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        echo "${server_ip}"
-        return 0
-    fi
-    
-    # Method 7: Manual input as last resort
-    log_warning "Could not automatically detect server IP address"
-    log_info "Please enter your server's public IP address manually:"
-    read -p "Server IP: " server_ip
     if [[ -n "$server_ip" && "$server_ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
         echo "${server_ip}"
         return 0
