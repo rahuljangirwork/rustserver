@@ -34,17 +34,18 @@ install_dependencies() {
     
     case "${PACKAGE_MANAGER}" in
         "dnf"|"yum")
-            execute_cmd "${PACKAGE_MANAGER} install -y wget curl systemd"
+            execute_cmd "${PACKAGE_MANAGER} install -y wget curl systemd unzip"
             ;;
         "apt")
             execute_cmd "apt-get update"
-            execute_cmd "apt-get install -y wget curl systemd"
+            execute_cmd "apt-get install -y wget curl systemd unzip"
             ;;
         *)
             log_warning "Unknown package manager, skipping dependency installation"
             ;;
     esac
 }
+
 
 # Create service user
 create_service_user() {
