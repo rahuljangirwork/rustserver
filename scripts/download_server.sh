@@ -50,6 +50,7 @@ download_server_binaries() {
 }
 
 # Extract binaries from ZIP package
+# Extract binaries from ZIP package
 extract_binaries() {
     local temp_dir="$1"
     local zip_file="$2"
@@ -80,16 +81,53 @@ extract_binaries() {
         exit 1
     fi
     
-    # Verify binaries exist
-    if [[ ! -f "hbbs" || ! -f "hbbr" ]]; then
-        log_error "Expected binaries (hbbs, hbbr) not found in extracted package"
+    # Map architecture for subdirectory name
+    local extract_arch
+    case "${ARCHITECTURE}" in
+        "x86_64")
+            extract_arch="amd64"
+            ;;
+        "aarch64")
+            extract_arch="arm64v8"
+            ;;
+        *)
+            log_error "Unsupported architecture: ${ARCHITECTURE}"
+            exit 1
+            ;;
+    esac
+    
+    # Check if binaries exist in subdirectory
+    if [[ -f "${extract_arch}/hbbs" && -f "${extract_arch}/hbbr" ]]; then
+        log_info "Found binaries in ${extract_arch} subdirectory"
+        
+        # Move binaries to temp directory root for easier handling
+        execute_cmd "mv ${extract_arch}/hbbs ${temp_dir}/"
+        execute_cmd "mv ${extract_arch}/hbbr ${temp_dir}/"
+        
+        # Move utils if it exists (optional)
+        if [[ -f "${extract_arch}/rustdesk-utils" ]]; then
+            execute_cmd "mv ${extract_arch}/rustdesk-utils ${temp_dir}/"
+        fi
+        
+        log_success "Binaries moved to installation directory"
+    elif [[ -f "hbbs" && -f "hbbr" ]]; then
+        log_info "Found binaries in root directory"
+    else
+        log_error "Expected binaries (hbbs, hbbr) not found"
         log_info "Contents of extracted package:"
-        ls -la "${temp_dir}"
+        find "${temp_dir}" -name "hbbs" -o -name "hbbr" -o -type f | head -10
+        exit 1
+    fi
+    
+    # Verify binaries are now in the expected location
+    if [[ ! -f "${temp_dir}/hbbs" || ! -f "${temp_dir}/hbbr" ]]; then
+        log_error "Binaries not found after extraction and move"
         exit 1
     fi
     
     log_success "Binaries extracted successfully"
 }
+
 
 # Install downloaded binaries
 install_binaries() {
