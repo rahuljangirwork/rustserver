@@ -1,0 +1,35 @@
+[Unit]
+Description=RustDesk Hub Server (hbbs)
+Documentation=https://github.com/rustdesk/rustdesk-server
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{SERVICE_USER}}
+Group={{SERVICE_USER}}
+WorkingDirectory={{INSTALL_DIR}}
+ExecStart={{INSTALL_DIR}}/hbbs -r {{SERVER_IP}}:21117{{WEB_CONSOLE_ARGS}}
+Restart=always
+RestartSec=5
+StartLimitInterval=60s
+StartLimitBurst=3
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths={{INSTALL_DIR}} {{LOG_DIR}}
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=rustdesk-hbbs
+
+[Install]
+WantedBy=multi-user.target
